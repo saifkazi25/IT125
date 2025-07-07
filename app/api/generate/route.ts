@@ -37,6 +37,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: prediction.detail || 'Failed to generate image' }, { status: 500 });
     }
 
+    // ✅ Corrected this line
     const output = Array.isArray(prediction.output)
       ? prediction.output[0]
       : prediction.output;
@@ -47,6 +48,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
 }
+
 
 
 
