@@ -25,3 +25,22 @@ export async function POST(req: NextRequest) {
       body: JSON.stringify({
         version: MODEL_VERSION,
         input: { user_image, template_image },
+      }),
+    });
+
+    const prediction = await res.json();
+
+    if (!res.ok) {
+      console.error('Replicate error:', prediction);
+      return NextResponse.json(
+        { error: prediction.detail || 'Failed to generate image' },
+        { status: 500 }
+      );
+    }
+
+    const output = Array.isArray(prediction.output)
+      ? prediction.output[0]
+      : prediction.output;
+
+    return NextResponse.json({ image: output });
+  }
