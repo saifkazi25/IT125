@@ -1,42 +1,63 @@
-
 'use client';
 
-import { useRouter, useSearchParams } from 'next/navigation';
 import { useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 
 export default function SelfiePage() {
-  const [image, setImage] = useState<File | null>(null);
-  const [loading, setLoading] = useState(false);
   const router = useRouter();
-  const params = useSearchParams();
+  const searchParams = useSearchParams();
+  const [file, setFile] = useState<File | null>(null);
+  const [uploading, setUploading] = useState(false);
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      setFile(e.target.files[0]);
+    }
+  };
 
   const handleUpload = async () => {
-    if (!image) return;
-    setLoading(true);
+    if (!file) return;
+
     const formData = new FormData();
-    formData.append('selfie', image);
-    formData.append('questions', JSON.stringify(Object.fromEntries(params.entries())));
+    formData.append('file', file);
 
-    const res = await fetch('/api/generate', {
-      method: 'POST',
-      body: formData,
-    });
+    setUploading(true);
 
-    const data = await res.json();
-    router.push(\`/result?img=\${data.image}\`);
+    try {
+      const res = await fetch('/api/generate', {
+        method: 'POST',
+        body: formData,
+      });
+
+      const data = await res.json();
+      const query = searchParams.toString();
+      router.push(`/result?img=${encodeURIComponent(data.image)}&${query}`);
+    } catch (err) {
+      console.error('Upload error:', err);
+    } finally {
+      setUploading(false);
+    }
   };
 
   return (
-    <main className="p-4 text-black">
-      <h2 className="text-xl font-bold mb-4">Upload a Selfie</h2>
-      <input type="file" accept="image/*" onChange={(e) => setImage(e.target.files?.[0] || null)} />
+    <main className="flex flex-col items-center justify-center min-h-screen p-4 bg-white text-black">
+      <h1 className="text-2xl font-bold mb-4">📸 Upload Your Selfie</h1>
+
+      <input
+        type="file"
+        accept="image/*"
+        onChange={handleFileChange}
+        className="mb-4"
+      />
+
       <button
         onClick={handleUpload}
-        className="mt-4 px-4 py-2 bg-green-600 text-white rounded"
-        disabled={loading}
+        disabled={!file || uploading}
+        className="bg-black text-white px-4 py-2 rounded disabled:opacity-50"
       >
-        {loading ? 'Generating...' : 'Create My Fantasy'}
+        {uploading ? 'Generating...' : 'Generate Fantasy Image'}
       </button>
     </main>
   );
 }
+
