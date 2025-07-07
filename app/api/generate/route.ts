@@ -1,16 +1,12 @@
 // app/api/generate/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 
-/**
- * FaceFusion model + version ID
- * Source: https://replicate.com/lucataco/modelscope-facefusion ➜ API tab
- */
+// Replace with actual model version ID from Replicate's API tab
 const MODEL_VERSION =
   'lucataco/modelscope-facefusion:52edbb2b42beb4e19242f0c9ad5717211a96c63ff1f0b0320caa518b2745f4f7';
 
 export async function POST(req: NextRequest) {
   try {
-    // ───── 1) Read JSON body ────────────────────────────────────────────────
     const { user_image, template_image } = await req.json();
 
     if (!user_image || !template_image) {
@@ -20,7 +16,6 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // ───── 2) Call Replicate Predictions API (sync) ─────────────────────────
     const replicateRes = await fetch(
       'https://api.replicate.com/v1/predictions',
       {
@@ -28,7 +23,7 @@ export async function POST(req: NextRequest) {
         headers: {
           Authorization: `Token ${process.env.REPLICATE_API_TOKEN}`,
           'Content-Type': 'application/json',
-          Prefer: 'wait', // block until finished
+          Prefer: 'wait',
         },
         body: JSON.stringify({
           version: MODEL_VERSION,
@@ -50,7 +45,25 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Some models return array, some return single URL
     const output = Array.isArray(prediction.output)
-      ? predict
+      ? prediction.output[0]
+      : prediction.output;
+
+    if (!output) {
+      return NextResponse.json(
+        { error: 'No output returned from model' },
+        { status: 500 }
+      );
+    }
+
+    return NextResponse.json({ image: output });
+  } catch (err: any) {
+    console.error('API route error:', err);
+    return NextResponse.json(
+      { error: 'Unexpected server error' },
+      { status: 500 }
+    );
+  }
+}
+
 
