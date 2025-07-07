@@ -19,12 +19,10 @@ export default function SelfieContent() {
     const formData = new FormData();
     formData.append('file', uploadedImage);
 
-    // Generate fantasy prompt from query params
     const prompt = Array.from(params.entries())
-      .map(([key, value]) => value)
+      .map(([_, value]) => value)
       .join(', ');
 
-    // First: generate a fantasy template image
     const templateRes = await fetch('/api/generate-template', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -34,7 +32,6 @@ export default function SelfieContent() {
     const templateData = await templateRes.json();
     const templateImage = templateData.image;
 
-    // Then: send selfie + template to face fusion model
     const base64Image = await toBase64(uploadedImage);
     const fusionRes = await fetch('/api/generate', {
       method: 'POST',
@@ -71,3 +68,4 @@ export default function SelfieContent() {
     </main>
   );
 }
+
