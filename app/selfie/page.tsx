@@ -1,69 +1,64 @@
 'use client';
 
 import { useState, Suspense } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useSearchParams, useRouter } from 'next/navigation';
 
-function SelfieForm() {
+function SelfieUpload() {
+  const [image, setImage] = useState<File | null>(null);
+  const [uploadedImage, setUploadedImage] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  const [file, setFile] = useState<File | null>(null);
-  const [loading, setLoading] = useState(false);
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setImage(file);
+      const reader = new FileReader();
+      reader.onloadend = () => setUploadedImage(reader.result as string);
+      reader.readAsDataURL(file);
+    }
+  };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!file) return;
+  const handleSubmit = async () => {
+    if (!image || !uploadedImage) return;
 
     setLoading(true);
 
-    const formData = new FormData();
-    formData.append('selfie', file);
-
-    // Collect all answers from URL params
+    const answers = [];
     for (let i = 0; i < 10; i++) {
       const val = searchParams.get(`q${i}`);
-      if (val) {
-        formData.append(`q${i}`, val);
-      }
+      if (val) answers.push(val);
     }
+
+    console.log("Sending image and answers to API:", { answers });
 
     const res = await fetch('/api/generate', {
       method: 'POST',
-      body: formData,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        image: uploadedImage,
+        answers,
+      }),
     });
 
     const data = await res.json();
-    router.push(`/result?img=${encodeURIComponent(data.image)}`);
+    console.log("Response from /api/generate:", data);
+
+    router.push(`/result?img=${encodeURIComponent(data.image || '')}`);
   };
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen p-4">
-      <h1 className="text-3xl font-bold mb-6">📸 Upload a Selfie</h1>
-      <form onSubmit={handleSubmit} className="flex flex-col items-center space-y-4">
-        <input
-          type="file"
-          accept="image/*"
-          onChange={(e) => setFile(e.target.files?.[0] || null)}
-          required
-        />
-        <button
-          type="submit"
-          disabled={loading}
-          className="bg-blue-600 text-white px-4 py-2 rounded"
-        >
-          {loading ? 'Generating...' : 'Submit'}
-        </button>
-      </form>
-    </div>
-  );
-}
+    <div className="min-h-screen flex flex-col items-center justify-center p-4 text-center bg-white text-black">
+      <h1 className="text-2xl font-bold mb-4">📸 Upload a Selfie</h1>
+      <input type="file" accept="image/*" onChange={handleFileChange} className="mb-4" />
+      {uploadedImage && (
+        <img src={uploadedImage} alt="Preview" className="w-32 h-32 rounded-full object-cover mb-4" />
+      )}
+      <button
+        onClick={handleSubmit}
+        disabled={!image || loading}
+        className="bg-blue-500 text-white px-6 py-2 roun
 
-export default function Page() {
-  return (
-    <Suspense fallback={<div className="text-center p-8">Loading...</div>}>
-      <SelfieForm />
-    </Suspense>
-  );
-}
 
 
