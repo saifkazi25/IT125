@@ -1,9 +1,9 @@
 'use client';
 
 import { useRouter, useSearchParams } from 'next/navigation';
-import { useState } from 'react';
+import { useState, Suspense } from 'react';
 
-export default function SelfiePage() {
+function SelfieInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -80,8 +80,10 @@ export default function SelfiePage() {
   );
 }
 
-
-
-
-
-
+export default function SelfiePage() {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <SelfieInner />
+    </Suspense>
+  );
+}
