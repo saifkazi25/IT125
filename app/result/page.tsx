@@ -1,29 +1,13 @@
 'use client';
 
 import { useSearchParams } from 'next/navigation';
-import { Suspense } from 'react';
 
-function ResultContent() {
-  const searchParams = useSearchParams();
-  const image = searchParams.get('img');
+export default function ResultPage() {
+  const params = useSearchParams();
+  const image = params.get('img');
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen p-4">
-      <h1 className="text-3xl font-bold mb-6">🌟 Your Ultimate Fantasy 🌟</h1>
-      {image ? (
-        <img src={image} alt="Fantasy Result" className="max-w-full rounded-lg shadow-lg" />
-      ) : (
-        <p>No image found</p>
-      )}
-    </div>
-  );
-}
+    <main className="flex flex-col items-center justify-center min-h-screen p-6 bg-white text-black">
+      <h1
 
-export default function Page() {
-  return (
-    <Suspense fallback={<div>Loading...</div>}>
-      <ResultContent />
-    </Suspense>
-  );
-}
 
