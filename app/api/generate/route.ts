@@ -1,34 +1,35 @@
-import { NextResponse } from 'next/server';
+// app/api/generate/route.ts
 
-export async function POST(req: Request) {
+import { NextRequest, NextResponse } from 'next/server';
+import Replicate from 'replicate';
+
+const replicate = new Replicate({
+  auth: process.env.REPLICATE_API_TOKEN!,
+});
+
+export async function POST(req: NextRequest) {
   try {
-    const { selfieUrl, fantasyPrompt } = await req.json();
+    const body = await req.json();
 
-    const response = await fetch('https://api.replicate.com/v1/predictions', {
-      method: 'POST',
-      headers: {
-        Authorization: `Token ${process.env.REPLICATE_API_TOKEN}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        version: '8a60bdf7e359c59d90dad33f9ed6fd812faa93861821d6324a7a4e4db0f4c1f5', // ← FaceFusion model version
-        input: {
-          target_image: selfieUrl,
-          prompt: fantasyPrompt,
-        },
-      }),
-    });
+    const { userImage, templateImage } = body;
 
-    const data = await response.json();
-
-    if (!response.ok) {
-      return NextResponse.json({ error: data.detail || 'Image generation failed' }, { status: 500 });
+    if (!userImage || !templateImage) {
+      return NextResponse.json({ error: 'Missing images' }, { status: 400 });
     }
 
-    return NextResponse.json(data);
-  } catch (error) {
-    return NextResponse.json({ error: 'Unexpected server error' }, { status: 500 });
+    const prediction = await replicate.run(
+      "lucataco/modelscope-facefusion:52edbb2b42beb4e19242f0c9ad5717211a96c63ff1f0b0320caa518b2745f4f7",
+      {
+        input: {
+          user_image: userImage,
+          template_image: templateImage,
+        },
+      }
+    );
+
+    return NextResponse.json({ output: prediction });
+  } catch (error: any) {
+    console.error('Error generating image:', error);
+    return NextResponse.json({ error: error.message || 'Unexpected error' }, { status: 500 });
   }
 }
-
-
