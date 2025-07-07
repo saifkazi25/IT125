@@ -1,87 +1,80 @@
 "use client";
+import { useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 
-import { useState, useEffect } from "react";
-import { useSearchParams } from "next/navigation";
+function promptFromAnswers(ans: string[]) {
+  return `Ultra-detailed fantasy of a person in ${ans[1]} in ${ans[0]}, during ${ans[4]}, holding ${ans[6]}, with power of ${ans[5]}, accompanied by ${ans[3]}, mood ${ans[2]}.`;
+}
 
 export default function SelfiePage() {
-  const searchParams = useSearchParams();
-  const [uploadedImage, setUploadedImage] = useState<File | null>(null);
-  const [preview, setPreview] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [result, setResult] = useState<string | null>(null);
+  const router = useRouter();
+  const params = useSearchParams();
+  const answers = Array.from({ length: 7 }, (_, i) => params.get(`q${i}`) || "");
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const [selfieData, setSelfieData] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  const fileToDataUrl = (file: File) =>
+    new Promise<string>((res, rej) => {
+      const reader = new FileReader();
+      reader.onloadend = () => res(reader.result as string);
+      reader.onerror = rej;
+      reader.readAsDataURL(file);
+    });
+
+  const handleFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) {
-      setUploadedImage(file);
-      setPreview(URL.createObjectURL(file));
+    if (file) setSelfieData(await fileToDataUrl(file));
+  };
+
+  const generate = async () => {
+    if (!selfieData) return alert("Upload a selfie first");
+    setLoading(true);
+    try {
+      const prompt = promptFromAnswers(answers);
+      const tmplRes = await fetch("/api/text-to-image", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ prompt }),
+      });
+      const tmplJson = await tmplRes.json();
+      if (!tmplJson.image) throw new Error();
+
+      const fuseRes = await fetch("/api/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          user_image: selfieData,
+          template_image: tmplJson.image,
+        }),
+      });
+      const fuseJson = await fuseRes.json();
+      if (!fuseJson.image) throw new Error();
+
+      router.push(`/result?img=${encodeURIComponent(fuseJson.image)}`);
+    } catch (e) {
+      console.error(e);
+      alert("Something failed");
+    } finally {
+      setLoading(false);
     }
   };
 
-  const generateFantasy = async () => {
-    if (!uploadedImage) return alert("Please upload a selfie.");
-
-    const reader = new FileReader();
-    reader.onloadend = async () => {
-      const user_image = reader.result;
-
-      // STEP 2: Build template_image from quiz answers
-      const answers = Array.from({ length: 7 }, (_, i) =>
-        searchParams.get(`q${i}`) || "blank"
-      );
-
-      const prompt = answers.join(" ");
-      const template_image_res = await fetch(
-        "https://api.replicate.com/v1/predictions",
-        {
-          method: "POST",
-          headers: {
-            Authorization: `Token ${process.env.REPLICATE_API_TOKEN}`,
-            "Content-Type": "application/json",
-            Prefer: "wait",
-          },
-          body: JSON.stringify({
-            version: "stability-ai/sdxl:YOUR_VERSION_HERE",
-            input: { prompt },
-          }),
-        }
-      );
-
-      const template_json = await template_image_res.json();
-      const template_image = Array.isArray(template_json.output)
-        ? template_json.output[0]
-        : template_json.output;
-
-      setLoading(true);
-      const res = await fetch("/api/generate", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ user_image, template_image }),
-      });
-
-      const data = await res.json();
-      setResult(data.image);
-      setLoading(false);
-    };
-
-    reader.readAsDataURL(uploadedImage);
-  };
-
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center p-4 text-center bg-white text-black">
-      <h1 className="text-2xl font-bold mb-4">📸 Upload a Selfie</h1>
-      <input type="file" accept="image/*" onChange={handleFileChange} className="mb-4" />
-      {preview && <img src={preview} alt="Preview" className="mb-4 w-48 h-48 object-cover" />}
+    <div className="flex flex-col items-center justify-center min-h-screen p-6 gap-4">
+      <h1 className="text-2xl font-bold mb-4">Upload selfie & create fantasy!</h1>
+      <input type="file" onChange={handleFile} accept="image/*" />
+      {selfieData && <img src={selfieData} className="w-40 h-40 rounded-full" />}
       <button
-        onClick={generateFantasy}
-        className="bg-black text-white px-4 py-2 rounded mb-4"
-        disabled={loading}
+        disabled={loading || !selfieData}
+        onClick={generate}
+        className="bg-black text-white p-2 rounded disabled:opacity-50"
       >
-        {loading ? "Generating..." : "See Your Fantasy"}
+        {loading ? "Generating..." : "Make Fantasy"}
       </button>
-      {result && <img src={result} alt="Fantasy Result" className="mt-4 max-w-full" />}
     </div>
   );
 }
+
 
 
