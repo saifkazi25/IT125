@@ -1,3 +1,4 @@
+// app/api/generate/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 
 const MODEL_VERSION =
@@ -14,7 +15,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const response = await fetch('https://api.replicate.com/v1/predictions', {
+    const res = await fetch('https://api.replicate.com/v1/predictions', {
       method: 'POST',
       headers: {
         Authorization: `Token ${process.env.REPLICATE_API_TOKEN}`,
@@ -23,34 +24,4 @@ export async function POST(req: NextRequest) {
       },
       body: JSON.stringify({
         version: MODEL_VERSION,
-        input: {
-          user_image,
-          template_image,
-        },
-      }),
-    });
-
-    const prediction = await response.json();
-
-    if (!response.ok) {
-      console.error('Replicate API error:', prediction);
-      return NextResponse.json({ error: prediction.detail || 'Failed to generate image' }, { status: 500 });
-    }
-
-    // ✅ Corrected this line
-    const output = Array.isArray(prediction.output)
-      ? prediction.output[0]
-      : prediction.output;
-
-    return NextResponse.json({ image: output });
-  } catch (error: any) {
-    console.error('Internal error:', error);
-    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
-  }
-}
-
-
-
-
-
-
+        input: { user_image, template_image },
