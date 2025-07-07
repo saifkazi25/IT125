@@ -1,15 +1,16 @@
 'use client';
 
-import React, { Suspense } from 'react';
+import { Suspense } from 'react';
 import ResultContent from './result-content';
 
-export default function ResultPage() {
+export default function Page() {
   return (
-    <Suspense fallback={<div>Loading your fantasy result...</div>}>
+    <Suspense fallback={<div>Loading your fantasy image…</div>}>
       <ResultContent />
     </Suspense>
   );
 }
+
 
 
 
