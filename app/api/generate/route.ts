@@ -1,4 +1,3 @@
-// app/api/generate/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 
 const MODEL_VERSION =
@@ -7,6 +6,7 @@ const MODEL_VERSION =
 export async function POST(req: NextRequest) {
   try {
     const { user_image, template_image } = await req.json();
+
     if (!user_image || !template_image) {
       return NextResponse.json(
         { error: 'user_image and template_image are required' },
@@ -14,7 +14,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const res = await fetch('https://api.replicate.com/v1/predictions', {
+    const response = await fetch('https://api.replicate.com/v1/predictions', {
       method: 'POST',
       headers: {
         Authorization: `Token ${process.env.REPLICATE_API_TOKEN}`,
@@ -23,13 +23,18 @@ export async function POST(req: NextRequest) {
       },
       body: JSON.stringify({
         version: MODEL_VERSION,
-        input: { user_image, template_image },
+        input: {
+          user_image,
+          template_image,
+        },
       }),
     });
-    const prediction = await res.json();
-    if (!res.ok) {
-      console.error('Replicate error:', prediction);
-      return NextResponse.json({ error: prediction.detail || 'Failed' }, { status: 500 });
+
+    const prediction = await response.json();
+
+    if (!response.ok) {
+      console.error('Replicate API error:', prediction);
+      return NextResponse.json({ error: prediction.detail || 'Failed to generate image' }, { status: 500 });
     }
 
     const output = Array.isArray(prediction.output)
@@ -37,11 +42,12 @@ export async function POST(req: NextRequest) {
       : prediction.output;
 
     return NextResponse.json({ image: output });
-  } catch (e: any) {
-    console.error('Route error:', e);
-    return NextResponse.json({ error: 'Unexpected server error' }, { status: 500 });
+  } catch (error: any) {
+    console.error('Internal error:', error);
+    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
 }
+
 
 
 
