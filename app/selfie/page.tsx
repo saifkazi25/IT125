@@ -1,85 +1,87 @@
 "use client";
-import { useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
 
-function generateFantasyImagePrompt(answers: string[]) {
-  return `A highly detailed fantasy artwork of a person in ${answers[1]} in ${answers[0]} during the ${answers[4]}, holding a ${answers[6]}, with the power of ${answers[5]}, beside ${answers[3]}. Mood is ${answers[2]}.`;
-}
+import { useState, useEffect } from "react";
+import { useSearchParams } from "next/navigation";
 
-export default function SelfieUpload() {
-  const router = useRouter();
+export default function SelfiePage() {
   const searchParams = useSearchParams();
-  const [uploadedImage, setUploadedImage] = useState<string | null>(null);
+  const [uploadedImage, setUploadedImage] = useState<File | null>(null);
+  const [preview, setPreview] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-
-  const answers = Array.from({ length: 7 }, (_, i) => searchParams.get(`q${i}`) || "");
+  const [result, setResult] = useState<string | null>(null);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onloadend = () => setUploadedImage(reader.result as string);
-    reader.readAsDataURL(file);
+    if (file) {
+      setUploadedImage(file);
+      setPreview(URL.createObjectURL(file));
+    }
   };
 
-  const handleSubmit = async () => {
-    if (!uploadedImage) {
-      alert("Please upload a selfie first.");
-      return;
-    }
+  const generateFantasy = async () => {
+    if (!uploadedImage) return alert("Please upload a selfie.");
 
-    setLoading(true);
-    try {
-      // 1. Create prompt from answers
-      const prompt = generateFantasyImagePrompt(answers);
+    const reader = new FileReader();
+    reader.onloadend = async () => {
+      const user_image = reader.result;
 
-      // 2. Get fantasy background (template)
-      const templateRes = await fetch("/api/text-to-image", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prompt }),
-      });
-      const templateData = await templateRes.json();
-      const templateImage = templateData.image;
-      if (!templateImage) throw new Error("No template image returned");
+      // STEP 2: Build template_image from quiz answers
+      const answers = Array.from({ length: 7 }, (_, i) =>
+        searchParams.get(`q${i}`) || "blank"
+      );
 
-      // 3. Generate final image with selfie
+      const prompt = answers.join(" ");
+      const template_image_res = await fetch(
+        "https://api.replicate.com/v1/predictions",
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Token ${process.env.REPLICATE_API_TOKEN}`,
+            "Content-Type": "application/json",
+            Prefer: "wait",
+          },
+          body: JSON.stringify({
+            version: "stability-ai/sdxl:YOUR_VERSION_HERE",
+            input: { prompt },
+          }),
+        }
+      );
+
+      const template_json = await template_image_res.json();
+      const template_image = Array.isArray(template_json.output)
+        ? template_json.output[0]
+        : template_json.output;
+
+      setLoading(true);
       const res = await fetch("/api/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          user_image: uploadedImage,
-          template_image: templateImage,
-        }),
+        body: JSON.stringify({ user_image, template_image }),
       });
 
       const data = await res.json();
-      if (data.image) {
-        router.push(`/result?img=${encodeURIComponent(data.image)}`);
-      } else {
-        alert("Failed to generate image.");
-      }
-    } catch (err) {
-      console.error("Error:", err);
-      alert("Something went wrong.");
-    } finally {
+      setResult(data.image);
       setLoading(false);
-    }
+    };
+
+    reader.readAsDataURL(uploadedImage);
   };
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center p-4 text-center bg-white text-black">
       <h1 className="text-2xl font-bold mb-4">📸 Upload a Selfie</h1>
       <input type="file" accept="image/*" onChange={handleFileChange} className="mb-4" />
-      {uploadedImage && <img src={uploadedImage} alt="Uploaded" className="w-48 h-48 object-cover mb-4 rounded-full" />}
+      {preview && <img src={preview} alt="Preview" className="mb-4 w-48 h-48 object-cover" />}
       <button
-        onClick={handleSubmit}
-        className="bg-blue-500 text-white px-4 py-2 rounded"
+        onClick={generateFantasy}
+        className="bg-black text-white px-4 py-2 rounded mb-4"
         disabled={loading}
       >
-        {loading ? "Generating..." : "Create My Fantasy Image"}
+        {loading ? "Generating..." : "See Your Fantasy"}
       </button>
+      {result && <img src={result} alt="Fantasy Result" className="mt-4 max-w-full" />}
     </div>
   );
 }
+
 
