@@ -6,66 +6,68 @@ import { useState } from 'react';
 export default function SelfieContent() {
   const params = useSearchParams();
   const router = useRouter();
-  const [uploadedImage, setUploadedImage] = useState<File | null>(null);
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) setUploadedImage(file);
-  };
+  const q0 = params.get('q0');
+  const q1 = params.get('q1');
+  const q2 = params.get('q2');
+  const q3 = params.get('q3');
+  const q4 = params.get('q4');
+  const q5 = params.get('q5');
+  const q6 = params.get('q6');
 
-  const handleSubmit = async () => {
-    if (!uploadedImage) return alert('Please upload a selfie.');
+  const [file, setFile] = useState<File | null>(null);
+  const [loading, setLoading] = useState(false);
 
-    const formData = new FormData();
-    formData.append('file', uploadedImage);
+  const handleUpload = async () => {
+    if (!file) return;
 
-    const prompt = Array.from(params.entries())
-      .map(([_, value]) => value)
-      .join(', ');
+    setLoading(true);
 
-    const templateRes = await fetch('/api/generate-template', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ prompt }),
-    });
+    const reader = new FileReader();
+    reader.onloadend = async () => {
+      const base64 = reader.result?.toString().split(',')[1];
 
-    const templateData = await templateRes.json();
-    const templateImage = templateData.image;
+      const res = await fetch('/api/generate', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          answers: [q0, q1, q2, q3, q4, q5, q6],
+          image: base64,
+        }),
+      });
 
-    const base64Image = await toBase64(uploadedImage);
-    const fusionRes = await fetch('/api/generate', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        user_image: base64Image,
-        template_image: templateImage,
-      }),
-    });
+      const data = await res.json();
+      if (data?.output) {
+        router.push(`/result?img=${encodeURIComponent(data.output)}`);
+      } else {
+        alert('Image generation failed.');
+        setLoading(false);
+      }
+    };
 
-    const result = await fusionRes.json();
-    router.push(`/result?img=${encodeURIComponent(result.image)}`);
-  };
-
-  const toBase64 = (file: File): Promise<string> => {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onloadend = () => resolve(reader.result as string);
-      reader.onerror = reject;
-      reader.readAsDataURL(file);
-    });
+    reader.readAsDataURL(file);
   };
 
   return (
-    <main className="min-h-screen flex flex-col items-center justify-center p-4 bg-white text-black text-center">
-      <h1 className="text-2xl font-bold mb-4">📸 Upload Your Selfie</h1>
-      <input type="file" accept="image/*" onChange={handleFileChange} className="mb-4" />
+    <div className="min-h-screen flex flex-col items-center justify-center p-4 text-center bg-white text-black">
+      <h1 className="text-2xl font-bold mb-4">📸 Upload a Selfie</h1>
+      <input
+        type="file"
+        accept="image/*"
+        onChange={(e) => setFile(e.target.files?.[0] || null)}
+        className="mb-4"
+      />
       <button
-        onClick={handleSubmit}
-        className="bg-black text-white px-6 py-2 rounded hover:bg-gray-800 transition"
+        onClick={handleUpload}
+        className="px-6 py-2 bg-black text-white rounded"
+        disabled={loading}
       >
-        Generate Fantasy Image
+        {loading ? 'Creating Your Fantasy...' : 'Generate Fantasy Image'}
       </button>
-    </main>
+    </div>
   );
 }
+
 
