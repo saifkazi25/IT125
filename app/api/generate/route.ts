@@ -43,5 +43,8 @@ export async function POST(req: NextRequest) {
       : prediction.output;
 
     return NextResponse.json({ image: output });
+} catch (e: any) {
+    console.error('Route error:', e);
+    return NextResponse.json({ error: 'Unexpected server error' }, { status: 500 });
   }
 }
