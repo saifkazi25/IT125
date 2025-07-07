@@ -37,10 +37,8 @@ export async function POST(req: NextRequest) {
         { status: 500 }
       );
     }
+const output = Array.isArray(prediction.output) ? prediction.output[0] : prediction.output;
 
-    const output = Array.isArray(prediction.output)
-      ? prediction.output[0]
-      : prediction.output;
 
     return NextResponse.json({ image: output });
     
